@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Authentic 3D Fidget Cube</title>
+    <!-- Tailwind CSS for modern responsive UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for 360 degree camera rotation -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Press+Start+2P&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #030712;
+        }
+
+        .pixel-art-btn {
+            image-rendering: pixelated;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pixel-art-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+        }
+
+        .pixel-art-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Glassmorphism UI panel */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+    </style>
+</head>
+<body class="text-white overflow-hidden w-screen h-screen">
+
+    <!-- 3D Canvas Viewport -->
+    <div id="canvas-container" class="w-full h-full absolute inset-0 z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="relative z-10 w-full h-full pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- Header Controls & Counter -->
+        <header class="flex justify-between items-center w-full max-w-5xl mx-auto">
+            <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-xl pointer-events-auto">
+                <div class="w-3.5 h-3.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50"></div>
+                <div>
+                    <h1 class="text-sm md:text-base font-bold tracking-wider bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+                        FIDGET CUBE 3D
+                    </h1>
+                    <p class="text-[10px] text-slate-400 hidden sm:block">Edição Autêntica Realista</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 pointer-events-auto">
+                <!-- Fidget Counter Badge -->
+                <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-xl">
+                    <i class="fa-solid fa-hand-pointer text-emerald-400 text-xs"></i>
+                    <span class="text-xs text-slate-400 uppercase font-semibold">Fidgets:</span>
+                    <span id="fidget-counter" class="text-sm md:text-base font-extrabold text-emerald-400 font-mono">0</span>
+                </div>
+
+                <!-- Mute / Unmute Sound Button -->
+                <button id="sound-toggle-btn" title="Alternar Som" class="glass-panel w-11 h-11 rounded-2xl flex items-center justify-center text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 transition-all shadow-xl">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-base"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Floating Interactive Instruction Tooltip -->
+        <div id="instruction-tooltip" class="self-center glass-panel px-5 py-2.5 rounded-full text-xs md:text-sm text-slate-200 shadow-2xl border border-emerald-500/30 animate-bounce pointer-events-auto cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-arrows-spin text-emerald-400"></i>
+            <span>Arraste fora do cubo para rodar 360° | Clique nos elementos para interagir</span>
+        </div>
+
+        <!-- Bottom Pixel Art Face Selector Toolbar -->
+        <footer class="w-full max-w-2xl mx-auto pointer-events-auto">
+            <div class="glass-panel p-2 md:p-3 rounded-3xl shadow-2xl flex items-center justify-around gap-1 md:gap-2">
+                
+                <!-- Face 1: Spin -->
+                <button onclick="focusFace('spin')" title="Face 1: Spin (Disco com Knob)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <circle cx="8" cy="8" r="5" fill="#475569" />
+                        <circle cx="8" cy="11" r="1.2" fill="#06b6d4" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Spin</span>
+                </button>
+
+                <!-- Face 2: Roll -->
+                <button onclick="focusFace('roll')" title="Face 2: Roll (Esfera Cromada & Engrenagens Verdes)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <circle cx="5" cy="8" r="2.5" fill="#94a3b8" stroke="#ffffff" stroke-width="0.5" />
+                        <rect x="10" y="3" width="3" height="2.5" rx="0.5" fill="#10b981" />
+                        <rect x="10" y="6.8" width="3" height="2.5" rx="0.5" fill="#10b981" />
+                        <rect x="10" y="10.5" width="3" height="2.5" rx="0.5" fill="#10b981" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Roll</span>
+                </button>
+
+                <!-- Face 3: Glide -->
+                <button onclick="focusFace('glide')" title="Face 3: Glide (Joystick)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <circle cx="8" cy="8" r="5" fill="#64748b" />
+                        <circle cx="8" cy="8" r="3" fill="#10b981" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Glide</span>
+                </button>
+
+                <!-- Face 4: Click -->
+                <button onclick="focusFace('click')" title="Face 4: Click (5 Botões de Dado)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <circle cx="4.5" cy="4.5" r="1.3" fill="#10b981" />
+                        <circle cx="11.5" cy="4.5" r="1.3" fill="#10b981" />
+                        <circle cx="8" cy="8" r="1.3" fill="#475569" />
+                        <circle cx="4.5" cy="11.5" r="1.3" fill="#475569" />
+                        <circle cx="11.5" cy="11.5" r="1.3" fill="#10b981" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Click</span>
+                </button>
+
+                <!-- Face 5: Flip -->
+                <button onclick="focusFace('flip')" title="Face 5: Flip (Interruptor)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <rect x="6" y="3" width="4" height="10" rx="1" fill="#334155" />
+                        <rect x="6" y="3" width="4" height="5" rx="1" fill="#10b981" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Flip</span>
+                </button>
+
+                <!-- Face 6: Breathe -->
+                <button onclick="focusFace('breathe')" title="Face 6: Breathe (Pedra de Calma)" class="pixel-art-btn group relative flex flex-col items-center p-2 rounded-2xl hover:bg-slate-800/80 transition-all border border-transparent hover:border-emerald-500/40">
+                    <svg width="36" height="36" viewBox="0 0 16 16" class="w-8 h-8 md:w-10 md:h-10">
+                        <rect width="16" height="16" rx="3" fill="#0f172a" />
+                        <rect x="1" y="1" width="14" height="14" rx="2" fill="#e2e8f0" />
+                        <ellipse cx="8" cy="8" rx="3.5" ry="5" fill="#cbd5e1" stroke="#94a3b8" stroke-width="0.5" />
+                    </svg>
+                    <span class="text-[9px] text-slate-300 mt-1 font-semibold group-hover:text-emerald-400">Breathe</span>
+                </button>
+
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        /**
+         * Web Audio API Synthesizer - Creates authentic mechanical and tactile sound effects
+         */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.breatheGain = null;
+                this.breatheOsc1 = null;
+                this.breatheOsc2 = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContextClass();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // Crisp mechanical button click sound
+            playClick(isSoft = false) {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                if (isSoft) {
+                    // Soft rubber damp pad click
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.035);
+
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+                } else {
+                    // Sharp plastic/metallic tactile switch snap
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1400, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.022);
+
+                    gain.gain.setValueAtTime(0.45, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.022);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.04);
+            }
+
+            // Rocker switch dual "CLACK" impact sound
+            playFlip(isOn) {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                
+                // Heavy body resonance
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isOn ? 380 : 310, now);
+                osc.frequency.exponentialRampToValueAtTime(45, now + 0.06);
+
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.07);
+
+                // High metallic latch click
+                setTimeout(() => {
+                    if (this.muted) return;
+                    const osc2 = this.ctx.createOscillator();
+                    const gain2 = this.ctx.createGain();
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(2100, this.ctx.currentTime);
+                    osc2.frequency.exponentialRampToValueAtTime(180, this.ctx.currentTime + 0.02);
+
+                    gain2.gain.setValueAtTime(0.35, this.ctx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.02);
+
+                    osc2.connect(gain2);
+                    gain2.connect(this.ctx.destination);
+                    osc2.start();
+                    osc2.stop(this.ctx.currentTime + 0.025);
+                }, 10);
+            }
+
+            // Gear & Dial ratchet click sound
+            playRatchet() {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(950, now);
+                osc.frequency.exponentialRampToValueAtTime(250, now + 0.012);
+
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.015);
+            }
+
+            // Joystick snap release sound
+            playJoystickSnap() {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
+
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.09);
+            }
+
+            // Soothing ambient binaural hum for Breathe face
+            startBreatheSound() {
+                if (this.muted || this.breatheOsc1) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                this.breatheGain = this.ctx.createGain();
+                this.breatheGain.gain.setValueAtTime(0.001, now);
+                this.breatheGain.gain.linearRampToValueAtTime(0.22, now + 0.35);
+
+                this.breatheOsc1 = this.ctx.createOscillator();
+                this.breatheOsc2 = this.ctx.createOscillator();
+
+                this.breatheOsc1.type = 'sine';
+                this.breatheOsc2.type = 'sine';
+
+                this.breatheOsc1.frequency.setValueAtTime(216, now); // Warm chord A3
+                this.breatheOsc2.frequency.setValueAtTime(324, now); // E4 harmonic
+
+                this.breatheOsc1.connect(this.breatheGain);
+                this.breatheOsc2.connect(this.breatheGain);
+                this.breatheGain.connect(this.ctx.destination);
+
+                this.breatheOsc1.start(now);
+                this.breatheOsc2.start(now);
+            }
+
+            stopBreatheSound() {
+                if (!this.breatheGain) return;
+                const now = this.ctx.currentTime;
+                this.breatheGain.gain.linearRampToValueAtTime(0.001, now + 0.35);
+                setTimeout(() => {
+                    if (this.breatheOsc1) {
+                        this.breatheOsc1.stop();
+                        this.breatheOsc2.stop();
+                        this.breatheOsc1 = null;
+                        this.breatheOsc2 = null;
+                        this.breatheGain = null;
+                    }
+                }, 350);
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        // Sound Toggle Handler
+        document.getElementById('sound-toggle-btn').addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            const icon = document.getElementById('sound-icon');
+            if (audio.muted) {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-emerald-400';
+                audio.playClick(false);
+            }
+        });
+    </script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let fidgetCube, raycaster, mouse;
+        let fidgetCount = 0;
+
+        // Array storing interactable Three.js objects
+        const interactiveElements = [];
+        let activeDragObject = null;
+
+        // Specific Object References
+        let spinDialGroup, spinLastAngle = 0;
+        let rollBall, rollGears = [];
+        let glidePivot, glideCap;
+        let clickButtons = [];
+        let flipSwitch, flipAngleState = false;
+        let breathePad, breatheLight;
+
+        // Camera Lerp Targets
+        let targetCamPos = null;
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x070b14);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 6.2); // Default focused on Front Face (Spin)
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.15;
+            container.appendChild(renderer.domElement);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 4;
+            controls.maxDistance = 12;
+
+            // Lighting setup for realistic plastic and metallic reflections
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.25);
+            mainLight.position.set(5, 8, 7);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 1024;
+            mainLight.shadow.mapSize.height = 1024;
+            mainLight.shadow.bias = -0.0001;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
+            fillLight.position.set(-6, -4, -5);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0x10b981, 0.3);
+            rimLight.position.set(0, -6, -6);
+            scene.add(rimLight);
+
+            // Raycaster & Mouse setup
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Construct physical Fidget Cube 3D Model
+            createFidgetCube();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+            renderer.domElement.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+
+            // Hide instruction tooltip when clicked
+            document.getElementById('instruction-tooltip').addEventListener('click', (e) => {
+                const el = e.target.closest('#instruction-tooltip');
+                if (el) el.style.display = 'none';
+            });
+
+            // Start Animation Render Loop
+            animate();
+        }
+
+        function createFidgetCube() {
+            fidgetCube = new THREE.Group();
+            scene.add(fidgetCube);
+
+            // Smooth Light Grey/White Plastic Material (Matches physical Fidget Cube)
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xebf0f5,
+                roughness: 0.35,
+                metalness: 0.05
+            });
+
+            // Dark Frame / Inset Edge Accent Material
+            const frameMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.5,
+                metalness: 0.1
+            });
+
+            // Green Accent Material for buttons & gears (Matches physical Fidget Cube)
+            const greenAccentMaterial = new THREE.MeshStandardMaterial({
+                color: 0x10b981,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+
+            // Cyan/Teal Accent Material for Spin Knob
+            const cyanAccentMaterial = new THREE.MeshStandardMaterial({
+                color: 0x06b6d4,
+                roughness: 0.25,
+                metalness: 0.1
+            });
+
+            // Chrome Metal Material for Sphere
+            const chromeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: 0.95,
+                roughness: 0.08
+            });
+
+            // Slate Grey Plastic Material
+            const slateMaterial = new THREE.MeshStandardMaterial({
+                color: 0x475569,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+
+            // Core Cube Base Geometry
+            const cubeSize = 3.0;
+            const mainBox = new THREE.Mesh(new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize), bodyMaterial);
+            mainBox.castShadow = true;
+            mainBox.receiveShadow = true;
+            fidgetCube.add(mainBox);
+
+            // Dark Framed Face Plates on each of the 6 sides
+            const faceRotations = [
+                { pos: [0, 0, 1.51], rot: [0, 0, 0] },             // Face 1: Spin (+Z, Front)
+                { pos: [1.51, 0, 0], rot: [0, Math.PI / 2, 0] },   // Face 2: Roll (+X, Right)
+                { pos: [0, 1.51, 0], rot: [-Math.PI / 2, 0, 0] },  // Face 3: Glide (+Y, Top)
+                { pos: [-1.51, 0, 0], rot: [0, -Math.PI / 2, 0] }, // Face 4: Click (-X, Left)
+                { pos: [0, -1.51, 0], rot: [Math.PI / 2, 0, 0] },   // Face 5: Flip (-Y, Bottom)
+                { pos: [0, 0, -1.51], rot: [0, Math.PI, 0] }       // Face 6: Breathe (-Z, Back)
+            ];
+
+            faceRotations.forEach(f => {
+                // Inset border frame
+                const border = new THREE.Mesh(new THREE.PlaneGeometry(2.65, 2.65), frameMaterial);
+                border.position.set(...f.pos);
+                border.rotation.set(...f.rot);
+                fidgetCube.add(border);
+
+                // Inner light face plate
+                const plate = new THREE.Mesh(new THREE.PlaneGeometry(2.55, 2.55), bodyMaterial);
+                plate.position.set(...f.pos);
+                plate.position.multiplyScalar(1.002);
+                plate.rotation.set(...f.rot);
+                fidgetCube.add(plate);
+            });
+
+            // =========================================================================
+            // FACE 1: SPIN (+Z, Front - Matching user's image_15e67d.png)
+            // =========================================================================
+            const spinGroup = new THREE.Group();
+            spinGroup.position.set(0, 0, 1.52);
+
+            // Recessed socket background
+            const spinSocketGeo = new THREE.CylinderGeometry(1.05, 1.05, 0.05, 48);
+            const spinSocket = new THREE.Mesh(spinSocketGeo, frameMaterial);
+            spinSocket.rotation.x = Math.PI / 2;
+            spinGroup.add(spinSocket);
+
+            // Large flat dark grey rotating disc
+            spinDialGroup = new THREE.Group();
+            spinDialGroup.position.z = 0.04;
+
+            const dialDiscGeo = new THREE.CylinderGeometry(0.98, 0.98, 0.08, 48);
+            const dialDisc = new THREE.Mesh(dialDiscGeo, slateMaterial);
+            dialDisc.rotation.x = Math.PI / 2;
+            dialDisc.castShadow = true;
+            spinDialGroup.add(dialDisc);
+
+            // Small Cyan/Teal finger knob placed off-center (matching photo)
+            const knobGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.14, 24);
+            const knob = new THREE.Mesh(knobGeo, cyanAccentMaterial);
+            knob.rotation.x = Math.PI / 2;
+            knob.position.set(0, -0.45, 0.08); // Placed near bottom edge of dial
+            knob.castShadow = true;
+            spinDialGroup.add(knob);
+
+            spinDialGroup.userData = { type: 'spin' };
+            spinGroup.add(spinDialGroup);
+            interactiveElements.push(spinDialGroup, dialDisc, knob);
+            fidgetCube.add(spinGroup);
+
+            // =========================================================================
+            // FACE 2: ROLL (+X, Right - Matching user's WIN_20261005_13_44_02_Pro.jpg)
+            // =========================================================================
+            const rollGroup = new THREE.Group();
+            rollGroup.position.set(1.52, 0, 0);
+            rollGroup.rotation.set(0, Math.PI / 2, 0);
+
+            // Left side: Chrome Metal Sphere
+            const socketGeo = new THREE.CylinderGeometry(0.48, 0.42, 0.15, 32);
+            const socket = new THREE.Mesh(socketGeo, frameMaterial);
+            socket.rotation.x = Math.PI / 2;
+            socket.position.set(-0.55, 0, 0.05);
+            rollGroup.add(socket);
+
+            const ballGeo = new THREE.SphereGeometry(0.44, 32, 32);
+            rollBall = new THREE.Mesh(ballGeo, chromeMaterial);
+            rollBall.position.set(-0.55, 0, 0.22);
+            rollBall.castShadow = true;
+            rollBall.userData = { type: 'rollBall' };
+            rollGroup.add(rollBall);
+            interactiveElements.push(rollBall);
+
+            // Right side: 3 Green Gears stacked vertically
+            for (let i = 0; i < 3; i++) {
+                const gearY = 0.55 - i * 0.55;
+                
+                // Gear socket cutout
+                const gSocketGeo = new THREE.BoxGeometry(0.35, 0.42, 0.12);
+                const gSocket = new THREE.Mesh(gSocketGeo, frameMaterial);
+                gSocket.position.set(0.55, gearY, 0.05);
+                rollGroup.add(gSocket);
+
+                // Green gear wheel with teeth
+                const gearWheel = new THREE.Group();
+                gearWheel.position.set(0.55, gearY, 0.1);
+
+                const centerCylGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.32, 18);
+                const centerCyl = new THREE.Mesh(centerCylGeo, greenAccentMaterial);
+                centerCyl.rotation.z = Math.PI / 2;
+                centerCyl.castShadow = true;
+                gearWheel.add(centerCyl);
+
+                // Add small teeth along gear perimeter
+                const numTeeth = 8;
+                for (let t = 0; t < numTeeth; t++) {
+                    const angle = (t / numTeeth) * Math.PI * 2;
+                    const toothGeo = new THREE.BoxGeometry(0.06, 0.33, 0.06);
+                    const tooth = new THREE.Mesh(toothGeo, greenAccentMaterial);
+                    tooth.position.set(0, Math.cos(angle) * 0.18, Math.sin(angle) * 0.18);
+                    tooth.rotation.x = angle;
+                    gearWheel.add(tooth);
+                }
+
+                gearWheel.userData = { type: 'rollGear', index: i };
+                rollGroup.add(gearWheel);
+                rollGears.push(gearWheel);
+                interactiveElements.push(gearWheel, centerCyl);
+            }
+            fidgetCube.add(rollGroup);
+
+            // =========================================================================
+            // FACE 3: GLIDE (+Y, Top - Console Joystick)
+            // =========================================================================
+            const glideGroup = new THREE.Group();
+            glideGroup.position.set(0, 1.52, 0);
+            glideGroup.rotation.set(-Math.PI / 2, 0, 0);
+
+            // Base well
+            const wellGeo = new THREE.CylinderGeometry(0.85, 0.7, 0.15, 32);
+            const well = new THREE.Mesh(wellGeo, frameMaterial);
+            well.rotation.x = Math.PI / 2;
+            well.position.z = 0.05;
+            glideGroup.add(well);
+
+            // Joystick Pivot Group
+            glidePivot = new THREE.Group();
+            glidePivot.position.set(0, 0, 0.08);
+
+            // Metallic Stem
+            const stemGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.45, 16);
+            const stem = new THREE.Mesh(stemGeo, chromeMaterial);
+            stem.rotation.x = Math.PI / 2;
+            stem.position.z = 0.22;
+            glidePivot.add(stem);
+
+            // Thumb Disc Cap with concave center and green accent
+            const capGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.14, 32);
+            glideCap = new THREE.Mesh(capGeo, slateMaterial);
+            glideCap.rotation.x = Math.PI / 2;
+            glideCap.position.z = 0.45;
+            glideCap.castShadow = true;
+
+            const capCenterGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 24);
+            const capCenter = new THREE.Mesh(capCenterGeo, greenAccentMaterial);
+            capCenter.position.y = 0.02;
+            glideCap.add(capCenter);
+
+            glideCap.userData = { type: 'glide' };
+            glidePivot.add(glideCap);
+
+            glideGroup.add(glidePivot);
+            interactiveElements.push(glideCap);
+            fidgetCube.add(glideGroup);
+
+            // =========================================================================
+            // FACE 4: CLICK (-X, Left - 5 Dice Buttons)
+            // =========================================================================
+            const clickGroup = new THREE.Group();
+            clickGroup.position.set(-1.52, 0, 0);
+            clickGroup.rotation.set(0, -Math.PI / 2, 0);
+
+            // 5 Quincunx positions
+            const btnPos = [
+                { x: -0.58, y: 0.58, soft: false }, // Top-Left (Click)
+                { x: 0.58, y: 0.58, soft: false },  // Top-Right (Click)
+                { x: 0, y: 0, soft: true },         // Center (Silent)
+                { x: -0.58, y: -0.58, soft: true }, // Bottom-Left (Silent)
+                { x: 0.58, y: -0.58, soft: false }  // Bottom-Right (Click)
+            ];
+
+            const btnGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.22, 24);
+
+            btnPos.forEach((p, idx) => {
+                const mat = p.soft ? slateMaterial : greenAccentMaterial;
+                const btn = new THREE.Mesh(btnGeo, mat);
+                btn.rotation.x = Math.PI / 2;
+                btn.position.set(p.x, p.y, 0.14);
+                btn.castShadow = true;
+                btn.userData = {
+                    type: 'clickBtn',
+                    soft: p.soft,
+                    originalZ: 0.14,
+                    id: idx
+                };
+                clickGroup.add(btn);
+                clickButtons.push(btn);
+                interactiveElements.push(btn);
+            });
+            fidgetCube.add(clickGroup);
+
+            // =========================================================================
+            // FACE 5: FLIP (-Y, Bottom - Rocker Switch)
+            // =========================================================================
+            const flipGroup = new THREE.Group();
+            flipGroup.position.set(0, -1.52, 0);
+            flipGroup.rotation.set(Math.PI / 2, 0, 0);
+
+            const switchSocketGeo = new THREE.BoxGeometry(0.95, 1.65, 0.15);
+            const switchSocket = new THREE.Mesh(switchSocketGeo, frameMaterial);
+            switchSocket.position.z = 0.08;
+            flipGroup.add(switchSocket);
+
+            // Rocker switch with green accent top half
+            flipSwitch = new THREE.Group();
+            flipSwitch.position.z = 0.22;
+
+            const rockerTopGeo = new THREE.BoxGeometry(0.82, 0.7, 0.32);
+            const rockerTop = new THREE.Mesh(rockerTopGeo, greenAccentMaterial);
+            rockerTop.position.y = 0.35;
+            rockerTop.castShadow = true;
+
+            const rockerBotGeo = new THREE.BoxGeometry(0.82, 0.7, 0.32);
+            const rockerBot = new THREE.Mesh(rockerBotGeo, slateMaterial);
+            rockerBot.position.y = -0.35;
+            rockerBot.castShadow = true;
+
+            flipSwitch.add(rockerTop, rockerBot);
+            flipSwitch.rotation.x = -0.28; // Initial angled OFF state
+            flipSwitch.userData = { type: 'flip' };
+
+            flipGroup.add(flipSwitch);
+            interactiveElements.push(flipSwitch, rockerTop, rockerBot);
+            fidgetCube.add(flipGroup);
+
+            // =========================================================================
+            // FACE 6: BREATHE (-Z, Back - Worry Stone Indentation)
+            // =========================================================================
+            const breatheGroup = new THREE.Group();
+            breatheGroup.position.set(0, 0, -1.52);
+            breatheGroup.rotation.set(0, Math.PI, 0);
+
+            const ovalGeo = new THREE.SphereGeometry(0.72, 32, 16);
+            ovalGeo.scale(1.0, 1.45, 0.2);
+
+            const breatheMat = new THREE.MeshStandardMaterial({
+                color: 0xcbd5e1,
+                roughness: 0.2,
+                emissive: 0x10b981,
+                emissiveIntensity: 0.0
+            });
+
+            breathePad = new THREE.Mesh(ovalGeo, breatheMat);
+            breathePad.userData = { type: 'breathe' };
+            breatheGroup.add(breathePad);
+
+            breatheLight = new THREE.PointLight(0x10b981, 0, 2.5);
+            breatheLight.position.set(0, 0, 0.3);
+            breatheGroup.add(breatheLight);
+
+            interactiveElements.push(breathePad);
+            fidgetCube.add(breatheGroup);
+        }
+
+        // Increments user interaction score
+        function incrementCounter() {
+            fidgetCount++;
+            document.getElementById('fidget-counter').innerText = fidgetCount;
+        }
+
+        function onPointerDown(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactiveElements, true);
+
+            if (intersects.length > 0) {
+                // Find top interactive object
+                let hitObj = intersects[0].object;
+                while (hitObj && !hitObj.userData.type && hitObj.parent) {
+                    hitObj = hitObj.parent;
+                }
+
+                if (hitObj && hitObj.userData.type) {
+                    activeDragObject = hitObj;
+                    controls.enabled = false; // Pause camera rotation while interacting
+                    incrementCounter();
+
+                    const type = hitObj.userData.type;
+
+                    if (type === 'spin') {
+                        spinLastAngle = Math.atan2(mouse.y, mouse.x);
+                    }
+                    else if (type === 'clickBtn') {
+                        hitObj.position.z = hitObj.userData.originalZ - 0.08;
+                        audio.playClick(hitObj.userData.soft);
+                    }
+                    else if (type === 'flip') {
+                        flipAngleState = !flipAngleState;
+                        flipSwitch.rotation.x = flipAngleState ? 0.28 : -0.28;
+                        audio.playFlip(flipAngleState);
+                    }
+                    else if (type === 'breathe') {
+                        audio.startBreatheSound();
+                        breathePad.material.emissiveIntensity = 0.7;
+                        breatheLight.intensity = 2.0;
+                    }
+                }
+            }
+        }
+
+        function onPointerMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            if (!activeDragObject) return;
+
+            const type = activeDragObject.userData.type;
+
+            if (type === 'spin') {
+                const currentAngle = Math.atan2(mouse.y, mouse.x);
+                const deltaAngle = currentAngle - spinLastAngle;
+                spinDialGroup.rotation.z += deltaAngle * 2.2;
+
+                if (Math.abs(deltaAngle) > 0.18) {
+                    audio.playRatchet();
+                    spinLastAngle = currentAngle;
+                }
+            }
+            else if (type === 'rollGear') {
+                activeDragObject.rotation.x += (event.movementY || 0) * 0.06;
+                if (Math.abs(event.movementY || 0) > 2) {
+                    audio.playRatchet();
+                }
+            }
+            else if (type === 'rollBall') {
+                rollBall.rotation.x += (event.movementY || 0) * 0.04;
+                rollBall.rotation.y += (event.movementX || 0) * 0.04;
+            }
+            else if (type === 'glide') {
+                glidePivot.rotation.y = Math.max(-0.42, Math.min(0.42, mouse.x * 1.6));
+                glidePivot.rotation.x = Math.max(-0.42, Math.min(0.42, -mouse.y * 1.6));
+            }
+        }
+
+        function onPointerUp() {
+            if (activeDragObject) {
+                const type = activeDragObject.userData.type;
+
+                if (type === 'clickBtn') {
+                    activeDragObject.position.z = activeDragObject.userData.originalZ;
+                }
+                else if (type === 'glide') {
+                    glidePivot.rotation.x = 0;
+                    glidePivot.rotation.y = 0;
+                    audio.playJoystickSnap();
+                }
+                else if (type === 'breathe') {
+                    audio.stopBreatheSound();
+                    breathePad.material.emissiveIntensity = 0.0;
+                    breatheLight.intensity = 0;
+                }
+
+                activeDragObject = null;
+            }
+
+            controls.enabled = true; // Re-enable camera rotation
+        }
+
+        function focusFace(faceName) {
+            const distance = 6.2;
+
+            switch (faceName) {
+                case 'spin': // Face 1 (+Z)
+                    targetCamPos = new THREE.Vector3(0, 0, distance);
+                    break;
+                case 'roll': // Face 2 (+X)
+                    targetCamPos = new THREE.Vector3(distance, 0, 0);
+                    break;
+                case 'glide': // Face 3 (+Y)
+                    targetCamPos = new THREE.Vector3(0, distance, 0.001);
+                    break;
+                case 'click': // Face 4 (-X)
+                    targetCamPos = new THREE.Vector3(-distance, 0, 0);
+                    break;
+                case 'flip': // Face 5 (-Y)
+                    targetCamPos = new THREE.Vector3(0, -distance, 0.001);
+                    break;
+                case 'breathe': // Face 6 (-Z)
+                    targetCamPos = new THREE.Vector3(0, 0, -distance);
+                    break;
+            }
+
+            audio.playClick(true);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth camera transition when user clicks bottom face icons
+            if (targetCamPos) {
+                camera.position.lerp(targetCamPos, 0.08);
+                controls.target.lerp(targetLookAt, 0.08);
+
+                if (camera.position.distanceTo(targetCamPos) < 0.02) {
+                    camera.position.copy(targetCamPos);
+                    targetCamPos = null;
+                }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize WebGL Application on Load
+        window.onload = () => {
+            init3D();
+        };
+    </script>
+</body>
+</html>
